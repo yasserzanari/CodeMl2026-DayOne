@@ -10,8 +10,26 @@
 /data/private/
 /data/source/
 /datasets/
+dayone-participants/
+data/
+*.csv
+*.pdf
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.tif
+*.tiff
+*.webp
 *.sqlite
+*.sqlite3
 *.db
+*.log
+*.pth
+*.pt
+*.onnx
+admin/.models/
+admin/.runtime/
 
 # Artefacts locaux
 __pycache__/

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Connexion · DayOne Console</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="login-body">
+  <main class="login-shell">
+    <div class="login-mark" aria-hidden="true">D<span>1</span></div>
+    <p class="eyebrow">Console locale · Démonstration</p>
+    <h1>Une lecture attentive, à chaque visite.</h1>
+    <p class="login-intro">Accédez aux dossiers fictifs, à la relecture et au bot simulé. Aucune donnée ne quitte cet ordinateur.</p>
+    <form method="post" action="/login" class="login-card">
+      <label for="password">Mot de passe administrateur</label>
+      <input id="password" name="password" type="password" minlength="16" required autocomplete="current-password" autofocus>
+      <p id="login-error" class="form-error" role="alert" hidden>Mot de passe incorrect. Réessayez.</p>
+      <button type="submit" class="button button-primary">Ouvrir la console <span aria-hidden="true">→</span></button>
+    </form>
+    <p class="login-foot">Prototype de recherche · Données synthétiques uniquement</p>
+  </main>
+  <script>if (new URLSearchParams(location.search).has('error')) document.getElementById('login-error').hidden = false;</script>
+</body>
+</html>

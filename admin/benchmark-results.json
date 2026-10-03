@@ -1,0 +1,64 @@
+{
+  "dataset": "8 premières lignes du CSV synthétique fourni, rendues en cartes artificielles",
+  "scope": "Cartes imprimées générées, non comparables aux photos manuscrites fournies",
+  "network": "Bloqué pendant chargement et inférence",
+  "model": "EasyOCR fr+en, CPU, poids locaux",
+  "by_variant_and_field": {
+    "clean": {
+      "age": {
+        "correct": 8,
+        "total": 8,
+        "abstained": 0,
+        "accuracy": 1.0
+      },
+      "gestation": {
+        "correct": 8,
+        "total": 8,
+        "abstained": 0,
+        "accuracy": 1.0
+      },
+      "parity": {
+        "correct": 8,
+        "total": 8,
+        "abstained": 0,
+        "accuracy": 1.0
+      }
+    },
+    "low_contrast": {
+      "age": {
+        "correct": 8,
+        "total": 8,
+        "abstained": 0,
+        "accuracy": 1.0
+      },
+      "gestation": {
+        "correct": 8,
+        "total": 8,
+        "abstained": 0,
+        "accuracy": 1.0
+      },
+      "parity": {
+        "correct": 8,
+        "total": 8,
+        "abstained": 0,
+        "accuracy": 1.0
+      }
+    }
+  },
+  "absent_field_control": {
+    "clean": {
+      "false_positive_hcv": 0,
+      "total": 8
+    },
+    "low_contrast": {
+      "false_positive_hcv": 0,
+      "total": 8
+    }
+  },
+  "limitations": [
+    "Aucun mapping officiel photo-vers-ligne CSV",
+    "Aucune référence annotée pour les photos de registres",
+    "Les scores ne mesurent ni tableaux manuscrits ni liaison entre visites",
+    "Confiance OCR brute non calibrée"
+  ]
+}
