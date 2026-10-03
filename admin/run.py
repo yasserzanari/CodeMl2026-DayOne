@@ -19,6 +19,7 @@ from typing import Any
 
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from PIL import Image, ImageDraw, ImageFilter, ImageOps, ImageStat
@@ -297,7 +298,7 @@ def login_page(request: Request):
 async def login(request: Request):
     form = await request.form()
     supplied = str(form.get("password", ""))
-    role = "admin" if hmac.compare_digest(supplied, PASSWORD) else "reviewer" if REVIEWER_PASSWORD and hmac.compare_digest(supplied, REVIEWER_PASSWORD) else ""
+    role = "admin" if hmac.compare_digest(supplied.encode(), PASSWORD.encode()) else "reviewer" if REVIEWER_PASSWORD and hmac.compare_digest(supplied.encode(), REVIEWER_PASSWORD.encode()) else ""
     if not role:
         return RedirectResponse("/login?error=1", status_code=303)
     cookie, _ = make_cookie(role)
@@ -692,7 +693,7 @@ def extract_candidates(lines: list[str]) -> dict[str, str]:
     return found
 
 
-def perform_local_ocr(rid: str) -> dict[str, Any]:
+def perform_local_ocr(rid: str, job_id: str | None = None) -> dict[str, Any]:
     with database() as conn:
         row = conn.execute("SELECT * FROM records WHERE id=?", (rid,)).fetchone()
         if not row:
@@ -723,6 +724,7 @@ def perform_local_ocr(rid: str) -> dict[str, Any]:
         raise HTTPException(503, "OCR local indisponible. Installer les poids avec setup_models.py puis réessayer.") from exc
     applied = []
     with database() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         current = conn.execute("SELECT version FROM records WHERE id=?", (rid,)).fetchone()
         if not current or current["version"] != source_version:
             raise HTTPException(409, "Le dossier a changé pendant l'OCR. Relancer sur la version actuelle.")
@@ -736,11 +738,18 @@ def perform_local_ocr(rid: str) -> dict[str, Any]:
                 applied.append(key)
         conn.execute("UPDATE records SET version=version+1,updated_at=? WHERE id=?", (stamp(), rid))
         audit(conn, rid, "OCR_LOCAL", f"{len(applied)} suggestion(s) sur {len(pages)} page(s) à vérifier ; aucun texte OCR libre stocké.")
+        if job_id:
+            summary = {"job_id": job_id, "job_state": "DONE", "suggestions": len(applied),
+                       "detected_regions": len(detected), "pages": len(pages)}
+            # Field writes and the receipt commit together, including after a lost response.
+            conn.execute("UPDATE jobs SET state='DONE',result_json=?,updated_at=? WHERE id=?",
+                         (json.dumps(summary), stamp(), job_id))
         return {"record": get_record(conn, rid), "suggestions": len(applied), "detected_regions": len(detected), "pages": len(pages)}
 
 
 def process_job(job_id: str) -> dict[str, Any]:
     with database() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         job = conn.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
         if not job:
             raise HTTPException(404, "Opération introuvable.")
@@ -752,12 +761,9 @@ def process_job(job_id: str) -> dict[str, Any]:
             return {"job_id": job_id, "job_state": "RUNNING"}
         conn.execute("UPDATE jobs SET state='RUNNING',attempts=attempts+1,updated_at=? WHERE id=?", (stamp(), job_id))
     try:
-        result = perform_local_ocr(job["record_id"])
+        result = perform_local_ocr(job["record_id"], job_id)
         summary = {"job_id": job_id, "job_state": "DONE", "suggestions": result["suggestions"],
                    "detected_regions": result["detected_regions"], "pages": result["pages"]}
-        with database() as conn:
-            conn.execute("UPDATE jobs SET state='DONE',result_json=?,updated_at=? WHERE id=?",
-                         (json.dumps(summary), stamp(), job_id))
         return {**summary, "record": result["record"]}
     except HTTPException as exc:
         next_state = "PENDING" if exc.status_code in {409, 503} else "ERROR"
@@ -779,6 +785,7 @@ def run_local_ocr(rid: str, idempotency_key: str | None = Header(None, alias="Id
     if not key:
         raise HTTPException(400, "Clé d'idempotence vide.")
     with database() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         if not conn.execute("SELECT 1 FROM records WHERE id=?", (rid,)).fetchone():
             raise HTTPException(404, "Dossier introuvable.")
         existing = conn.execute("SELECT id,record_id FROM jobs WHERE idempotency_key=?", (key,)).fetchone()
@@ -809,6 +816,22 @@ def resume_jobs(_: dict = Depends(require_config_admin)):
 @app.exception_handler(HTTPException)
 async def http_error(_: Request, exc: HTTPException):
     return JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers={"Cache-Control": "no-store"})
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(_: Request, exc: RequestValidationError):
+    # Pydantic's default response includes rejected input, potentially a whole image.
+    return JSONResponse({"detail": "Requête invalide. Vérifier les champs et le format du document."},
+                        status_code=422, headers={"Cache-Control": "no-store"})
+
+
+@app.middleware("http")
+async def private_responses(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
 
 
 if __name__ == "__main__":

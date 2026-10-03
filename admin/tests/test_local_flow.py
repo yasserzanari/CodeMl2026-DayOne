@@ -171,3 +171,75 @@ def test_explicit_link_and_pending_recovery(client):
     run.init_db()
     with run.database() as conn:
         assert conn.execute("SELECT state FROM jobs WHERE id='synthetic-job'").fetchone()[0] == "PENDING"
+
+
+def test_validation_never_echoes_rejected_patient_input(client):
+    headers = signed_client(client)
+    rid = client.post("/api/bot/conversation", headers=headers, json={}).json()["id"]
+    marker = "SYNTHETIC_PRIVATE_MARKER"
+    response = client.post(f"/api/records/{rid}/image", headers=headers,
+                           json={"data_url": marker, "masks": marker, "synthetic_confirmed": True})
+    assert response.status_code == 422 and marker not in response.text
+    assert response.headers["Cache-Control"] == "no-store"
+
+
+def test_unicode_login_is_rejected_without_server_error(client):
+    response = client.post("/login", data={"password": "mauvais-mot-de-passe-é"}, follow_redirects=False)
+    assert response.status_code == 303 and response.headers["location"] == "/login?error=1"
+
+
+def test_redaction_pixels_duplicate_and_image_access(client):
+    headers = signed_client(client)
+    rid = client.post("/api/bot/conversation", headers=headers, json={}).json()["id"]
+    body = {"data_url": synthetic_photo("Age: 28"), "masks": [[0, 0, 400, 300]], "synthetic_confirmed": True}
+    saved = client.post(f"/api/records/{rid}/image", headers=headers, json=body).json()
+    repeated = client.post(f"/api/records/{rid}/image", headers=headers, json=body).json()
+    assert repeated["duplicate"] and repeated["page_id"] == saved["page_id"]
+    url = f"/api/records/{rid}/pages/{saved['page_id']}/image"
+    response = client.get(url)
+    with Image.open(BytesIO(response.content)) as page:
+        assert len(set(page.crop((0, 0, 400, 300)).getdata())) == 1
+    assert response.headers["Cache-Control"] == "no-store"
+    client.post("/logout", headers=headers)
+    assert client.get(url).status_code == 401
+
+
+def test_ocr_receipt_and_suggestions_roll_back_together(client, monkeypatch):
+    headers = signed_client(client)
+    rid = client.post("/api/bot/conversation", headers=headers, json={}).json()["id"]
+    client.post(f"/api/records/{rid}/image", headers=headers,
+                json={"data_url": synthetic_photo("Age: 28"), "masks": [[0, 0, 10, 10]], "synthetic_confirmed": True})
+    class Reader:
+        def readtext(self, *args, **kwargs):
+            return [([], "Age: 28", 0.95)]
+    monkeypatch.setattr(run, "ocr_reader", lambda languages: Reader())
+    with run.database() as conn:
+        conn.execute("CREATE TRIGGER reject_receipt BEFORE UPDATE OF state ON jobs WHEN NEW.state='DONE' BEGIN SELECT RAISE(ABORT, 'synthetic interruption'); END")
+    result = client.post(f"/api/records/{rid}/ocr", headers={**headers, "Idempotency-Key": "atomic-receipt"}).json()
+    assert result["job_state"] == "ERROR"
+    age = next(f for f in client.get(f"/api/records/{rid}").json()["fields"] if f["key"] == "age")
+    assert age["value"] == ""
+    with run.database() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM events WHERE record_id=? AND kind='OCR_LOCAL'", (rid,)).fetchone()[0] == 0
+        conn.execute("DROP TRIGGER reject_receipt")
+    result = client.post(f"/api/records/{rid}/ocr", headers={**headers, "Idempotency-Key": "atomic-receipt"}).json()
+    assert result["job_state"] == "DONE"
+
+
+def test_ciphertext_and_forged_session(client, monkeypatch):
+    from cryptography.fernet import Fernet
+    headers = signed_client(client)
+    rid = client.post("/api/bot/conversation", headers=headers, json={}).json()["id"]
+    marker = "SYNTHETIC_SECRET_SENTINEL_74291"
+    assert client.post(f"/api/bot/{rid}/message", headers=headers, json={"text": marker}).status_code == 200
+    assert marker.encode() not in run.DB_PATH.read_bytes()
+    first, second = run.seal(marker), run.seal(marker)
+    assert first != second and run.unseal(first) == marker
+    with pytest.raises(RuntimeError):
+        run.unseal(first[:-3] + b"xxx")
+    monkeypatch.setattr(run, "VAULT", Fernet(Fernet.generate_key()))
+    with pytest.raises(RuntimeError):
+        run.unseal(first)
+    client.cookies.clear()
+    client.cookies.set("dayone_session", "forged.signature")
+    assert client.get("/api/bootstrap").status_code == 401

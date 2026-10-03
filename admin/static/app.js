@@ -131,7 +131,7 @@ document.addEventListener("click", async (event) => {
   const record = event.target.closest("[data-record]"); if (record) { location.hash = `review?record=${encodeURIComponent(record.dataset.record)}`; return; }
   const page = event.target.closest("[data-page]"); if (page) { state.page += page.dataset.page === "next" ? 1 : -1; await render(); return; }
   const save = event.target.closest("[data-save-field]"); if (save) { const row = save.closest(".field-row"), status = row.querySelector("select").value; try { state.detail = await api(`/api/records/${state.detail.id}/fields/${save.dataset.saveField}/review`, { method: "POST", body: JSON.stringify({ value: row.querySelector("input").value, status, expected_version: Number(save.dataset.version) }) }); await refresh(); await loadList(); review(); flash(status === "À_RÉVISER" ? "Champ conservé dans la file de relecture." : "Champ enregistré et confirmé."); } catch (exc) { error(exc.message); } return; }
-  const action = event.target.closest("[data-action]"); if (action) { action.disabled = true; try { await mutate(action.dataset.action); } catch (exc) { error(exc.message); action.disabled = false; } }
+  const action = event.target.closest("[data-action]"); if (action) { action.disabled = true; try { await mutate(action.dataset.action); } catch (exc) { error(exc.message); } finally { if (action.isConnected) action.disabled = false; } }
 });
 document.addEventListener("change", async (event) => {
   if (event.target.id === "record-filter") { state.filter = event.target.value; state.page = 1; await render(); }
