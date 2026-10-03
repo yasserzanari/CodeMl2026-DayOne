@@ -11,10 +11,8 @@
   <div class="app-shell">
     <aside class="sidebar" aria-label="Navigation principale">
       <div class="brand">
-        <div class="brand-symbol" aria-hidden="true">D<span>1</span></div>
-        <div><strong>DayOne</strong><small>Console de suivi</small></div>
+        <strong>DayOne</strong>
       </div>
-      <div class="workspace-label">ESPACE DE TRAVAIL</div>
       <nav id="main-nav" aria-label="Sections">
         <a href="#dashboard" data-view="dashboard" class="nav-link"><span class="nav-icon">▦</span><span>Vue d'ensemble</span></a>
         <a href="#review" data-view="review" class="nav-link"><span class="nav-icon">▤</span><span>Relecture</span><span class="nav-badge" id="nav-pending">0</span></a>
@@ -22,14 +20,15 @@
         <a href="#settings" data-view="settings" class="nav-link"><span class="nav-icon">⚙</span><span>Configuration</span></a>
       </nav>
       <div class="sidebar-bottom">
-        <div class="privacy-note"><span class="privacy-dot"></span><div><strong>Mode local actif</strong><small>Aucun service tiers connecté</small></div></div>
+        <div class="privacy-note">Sur cet ordinateur</div>
+        <div class="sidebar-role">Administrateur local</div>
         <form id="logout-form" action="/logout" method="post"><button type="submit" class="logout-button">Se déconnecter <span aria-hidden="true">↗</span></button></form>
       </div>
     </aside>
 
     <div class="main-column">
       <header class="topbar">
-        <div class="crumb"><span>DayOne</span><span aria-hidden="true">/</span><strong id="crumb-current">Vue d'ensemble</strong></div>
+        <div class="crumb"><a href="#dashboard">Accueil</a><span aria-hidden="true">›</span><strong id="crumb-current">Vue d'ensemble</strong></div>
         <div class="topbar-right"><span class="environment-badge">Données fictives</span><span class="avatar" aria-label="Administrateur local">AD</span></div>
       </header>
       <div id="global-error" class="global-error" role="alert" hidden></div>
