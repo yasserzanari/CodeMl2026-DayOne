@@ -17,7 +17,7 @@ Depuis la racine du dépôt :
 
 ```powershell
 py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r admin/requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements-verified-windows.txt
 .\.venv\Scripts\python.exe admin/setup_models.py
 $env:DAYONE_ADMIN_PASSWORD = "une-longue-phrase-secrete-a-conserver"
 .\.venv\Scripts\python.exe admin/run.py
@@ -29,7 +29,7 @@ Ouvrir `http://127.0.0.1:8765`. Les trois dossiers de départ sont fictifs. Les 
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m pytest admin/tests/test_local_flow.py -q
+.\.venv\Scripts\python.exe -m pytest admin/tests -q
 $env:DAYONE_SYNTHETIC_CSV = "C:\chemin\vers\maternal_registry_synthetic.csv"
 .\.venv\Scripts\python.exe admin/benchmark_ocr.py
 ```
@@ -37,6 +37,8 @@ $env:DAYONE_SYNTHETIC_CSV = "C:\chemin\vers\maternal_registry_synthetic.csv"
 Le [rapport OCR agrégé](admin/benchmark-results.json) mesure 48 champs sur des **cartes imprimées artificielles** rendues depuis huit lignes du CSV synthétique : 48/48 corrects, avec réseau bloqué durant le chargement et l'inférence. Ce résultat ne mesure pas les photos manuscrites du défi : aucun mapping photo–ligne CSV ou vérité terrain par cellule n'est fourni. Ne pas présenter ce chiffre comme un score du jury.
 
 ## Confidentialité et sources
+
+La [preuve de reproductibilité, l'audit de protection et la démonstration de cinq minutes](docs/PREUVES-ET-DEMO.md) détaillent les **12 tests réussis sur clone propre**, les corrections et les écarts par critère du jury. Le fichier de versions correspond à Windows/Python 3.11 ; les poids OCR restent à préparer séparément.
 
 Les PDFs, photographies, CSV, archives, poids, bases, journaux et secrets restent hors de Git via [.gitignore](.gitignore). Les données du défi doivent être obtenues séparément par les canaux autorisés et conservées localement. La console n'est pas homologuée pour des données réelles. Le bot WhatsApp réel exigerait Meta et ferait sortir les messages de la machine : seul un [sandbox avec scénarios synthétiques](admin/META-SANDBOX.md) pourrait être envisagé, après obtention des accès nécessaires ; aucun adaptateur Meta n'est activé ou testé ici.
 

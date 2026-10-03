@@ -56,7 +56,7 @@ La [méthode de mesure et le plan détaillé](../docs/VERIFICATIONS-COMPLEMENTAI
 ## Vérifications reproductibles
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest admin/tests/test_local_flow.py -q
+.\.venv\Scripts\python.exe -m pytest admin/tests -q
 $env:DAYONE_SYNTHETIC_CSV = "C:\chemin\vers\maternal_registry_synthetic.csv"
 .\.venv\Scripts\python.exe admin/benchmark_ocr.py
 ```
@@ -66,6 +66,8 @@ Le 3 octobre 2026, les tests couvrent : authentification/rôles/CSRF ; confirmat
 **Démo hors réseau :** installer les dépendances et poids une fois, puis couper Internet en laissant la machine allumée. Lancer le serveur et parcourir Bot local → Relecture → import de deux pages fictives expurgées → OCR → correction → visite liée. Une opération OCR en attente reste dans SQLite ; après redémarrage, utiliser Configuration → « Reprendre la file locale ». Aucun service distant ne se synchronise au retour d'Internet dans cette version.
 
 ## Sécurité et limites
+
+Vérification complémentaire : **12 tests réussis sur clone propre** le 3 octobre 2026, avec un environnement Python 3.11 isolé et Torch 2.14.1. Les versions antérieures citées ci-dessus décrivent la première exécution. Voir [preuves, audit des clés et scénario de cinq minutes](../docs/PREUVES-ET-DEMO.md) et `requirements-verified-windows.txt` pour la configuration désormais vérifiée.
 
 Le chiffrement des données au repos utilise une clé dérivée du mot de passe admin. Perdre ce mot de passe rend la base irrécupérable. La session déverrouillée et le navigateur restent exposés à une personne ayant accès à l'ordinateur. Le masquage manuel doit être vérifié par un humain : le prototype ne peut pas garantir qu'un identifiant hors des rectangles a été retiré. Les fichiers transmis par le navigateur peuvent exister dans des caches du système hors du contrôle de l'application. Utiliser **uniquement les spécimens fictifs**.
 
